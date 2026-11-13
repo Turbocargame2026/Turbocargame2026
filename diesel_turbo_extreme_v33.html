@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Diesel Turbo Extreme – Version 32</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#101b22;color:#fff;font-family:system-ui,sans-serif}
+#dt18{max-width:900px;margin:auto;background:#14212a;padding:10px;border-radius:12px;display:flex;flex-direction:column;gap:8px}
+.p{background:#293e4b;padding:10px;border-radius:8px}.n{font-size:20px;font-weight:900;font-variant-numeric:tabular-nums}.s{font-size:11px;color:#c4d2da}
+button,select{background:#405c6e;color:white;border:1px solid #708797;border-radius:7px;padding:9px 4px;width:100%;font-size:12px}
+button:disabled{opacity:.4}.bar{height:9px;background:#111;border-radius:8px;overflow:hidden}.fill{height:100%;background:#e5a52c}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}
+canvas{width:100%;height:auto;border-radius:8px;display:block}
+#resetconfirm{display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.78);align-items:center;justify-content:center;padding:18px}
+#resetconfirm .dialog{width:min(420px,100%);background:#203441;border:1px solid #78909f;border-radius:12px;padding:20px;box-shadow:0 12px 40px #0009;text-align:center}
+#resetconfirm .dialog p{font-weight:800;font-size:17px;margin:4px 0 18px}
+#resetconfirm .dialog .grid2{margin-top:10px}
+</style>
+</head>
+<body>
+<div id="dt18">
+<div class="p" style="display:flex;justify-content:space-between"><div><div class="s">KILOMETERZÄHLER</div><div class="n" id="km">0 m</div></div><div><div class="s">MÜNZEN</div><div class="n" id="coins">0</div></div></div>
+<canvas id="road" width="850" height="340"></canvas>
+<div class="p" id="busstopbox" style="display:none"><div class="s">NÄCHSTE BUSHALTESTELLE</div><div class="n" id="busstopdistance">3.000 m</div><div class="s" id="busstopmessage">Noch bis zur Haltestelle</div><button id="buscollect" disabled style="margin-top:8px">EINSAMMELN</button></div>
+ <div class="p" style="display:flex;justify-content:space-between"><b id="land">Landstraße</b><span class="s"><span id="timeofday">Tag</span> · Biomwechsel: 45 Sekunden</span></div>
+<div class="stats">
+<div class="p"><div class="s">Geschwindigkeit</div><div class="n" id="speed">0</div><div class="s">km/h</div></div>
+<div class="p"><div class="s">Motordrehzahl</div><div class="n" id="rpm">850</div><div class="s">U/min</div></div>
+<div class="p"><div class="s">Ladedruck</div><div class="n" id="boost">0.3</div><div class="s">bar</div></div>
+</div>
+<div class="p" id="gauges">
+<div class="s" style="display:flex;justify-content:space-between"><span>Ladedruck</span><span id="limit">Grenze 3 bar</span></div><div class="bar"><div class="fill" id="boostbar"></div></div>
+<div id="tempbox" style="margin-top:8px"><div class="s" style="display:flex;justify-content:space-between"><span id="templabel">Turboladertemperatur</span><b id="temp">200 °C</b></div><div class="bar"><div class="fill" id="tempbar"></div></div></div>
+<div id="timerbox" style="margin-top:8px"><div class="s" style="display:flex;justify-content:space-between"><span>Überlastungszeit</span><b id="timer">30 s</b></div><div class="bar"><div class="fill" id="timerbar"></div></div></div>
+<div class="s" style="margin-top:8px" id="whistle">Turboladerpfeifen: 2.300 Hz</div>
+</div>
+<div class="p"><div class="s" style="display:flex;justify-content:space-between"><span>Kraftstoff</span><b id="fuel">100 %</b></div><div class="bar"><div class="fill" id="fuelbar" style="width:100%;background:#38b76b"></div></div></div>
+<div class="grid">
+<button id="gas">GAS HALTEN</button><button id="brake">BREMSEN</button><button id="nitro">NITRO</button>
+<button id="horn">HUPE</button><button id="sound">SOUND AN/AUS</button><button id="restart">NEUSTART</button><button id="reset-save" style="grid-column:1/-1;background:#7b2929">SPIELSTAND KOMPLETT ZURÜCKSETZEN</button>
+</div>
+<div class="p stats"><div><div class="s">Nitroflaschen</div><div class="n" id="bottles">1</div></div><div><div class="s">Punkte</div><div class="n" id="points">0</div></div><div><div class="s">Fahrzeugfarbe</div><div class="n" id="color">Rot</div></div></div>
+<div class="p grid2">
+<label class="s">Fahrzeug<select id="vehicle"><option value="Auto">Auto</option><option value="Lkw">Lastwagen · 500 Münzen</option><option value="Bus">Bus · 3.000 Münzen</option><option value="Geländewagen">Geländewagen · selten aus Kisten</option><option value="Sportwagen">Sportwagen · bis 380 km/h</option></select></label>
+<label class="s">Motor<select id="engine"><option value="na">Saugmotor</option><option value="diesel">Turbodiesel</option><option value="v8">V8 Supercharger</option><option value="jet">Jet-Gasturbine</option><option value="v12">V12 Biturbo</option></select></label>
+<label class="s">Ladergröße<select id="size"><option value="1">Größe 1</option><option value="2">Größe 2</option><option value="3">Größe 3</option><option value="4">Größe 4</option><option value="5">Größe 5</option></select></label>
+<label class="s">Wetter<select id="weather"><option>Wechselnd</option><option>Sonnig</option><option>Regen</option><option>Nebel</option><option>Schnee</option></select></label>
+</div>
+<div class="p"><b>Motoren-Shop</b><div class="grid2" style="margin-top:8px"><button id="diesel">Turbodiesel · 20 Münzen</button><button id="v8">V8 Supercharger · 500 Münzen</button><button id="jet">Jet-Gasturbine · 1.000 Münzen</button><button id="v12">V12 Biturbo · 3.000 Münzen</button></div><div class="s" id="unlocks"></div></div>
+<div class="p"><b>🎨 Fahrzeuglackierung</b><div class="s">Neue Standardfarbe: 20 Münzen. Sonderfarben aus Kisten sind kostenlos freigeschaltet.</div><div id="paintset" class="grid2" style="margin-top:8px"></div><div class="s" id="paintinfo"></div></div>
+<div class="p"><b>🔧 Werkstatt</b><div class="s" id="garage"></div><div class="grid2" style="margin-top:8px"><button id="repair">REPARIEREN</button><button id="replace">AUSTAUSCH · 100</button><button id="upgrade">UPGRADE · 300</button><button id="refuel">TANKEN</button></div><div class="s" style="margin-top:8px">Größe 1: 3 bar · Größe 2: 4 bar · Größe 3: 4,5 bar · Größe 4: 5 bar · Größe 5: 6 bar.</div></div>
+<div class="p"><div id="message">Bereit zum Start!</div><div id="reward" style="margin-top:8px"></div><button id="claim" style="display:none;margin-top:8px">BELOHNUNG ABHOLEN</button></div>
+</div>
+<div id="resetconfirm">
+ <div class="dialog">
+  <p>Möchtest du den kompletten Spielstand zurücksetzen?</p>
+  <div class="grid2"><button id="reset-yes" style="background:#a52c2c">JA</button><button id="reset-no">NEIN</button></div>
+ </div>
+</div>
+<script>
+(()=>{
+const r=document.getElementById('dt18');if(r.dataset.started)return;r.dataset.started=1;
+const $=id=>document.getElementById(id),c=$('road').getContext('2d');
+let data={};try{data=JSON.parse(localStorage.getItem('dt15save')||'{}')}catch(e){}
+let coins=data.coins||0,meters=data.meters||0,unlocked=[...new Set((data.unlocked||['na']).filter(k=>k!=='v12'))],size=data.size||1,maxSize=data.maxSize||data.size||1,ownedVehicles=[...new Set((data.ownedVehicles||['Auto']).filter(v=>v!=='Sportwagen'))],bottles=data.bottles||1,special=data.special||0,permanent=!!data.permanent,blitzerShield=!!data.blitzerShield;
+let engine='na',vehicle=ownedVehicles.includes(data.vehicle)?data.vehicle:'Auto',paint=data.paint||'Rot',ownedPaint=data.ownedPaint||['Rot'];
+let speed=0,rpm=850,pressure=0,spool=0,temp=200,fuel=100,gas=0,brake=0,nitro=0,over=0,runaway=false,broken=false,gameover=false,fire=false,dist=0,pitch=0,scene=4,sceneTime=0,objects=[],points=0,whistle=true,whistlePitch=2300,wheelRotation=0,lastSpecialBox=10000,nextSpecialMilestone=50000,specialBoxesQueued=0,dayClock=0,isNight=false,busStopAt=data.busStopAt||3000,busStopReady=false,busStops=data.busStops||0,busStopMissed=false,cityCameraAt=null,cameraPassed=false;
+let weatherTime=0;let ac=null,osc=null,gain=null,wh=null,wgain=null,last=0;
+const caps=[3,4,4.5,5,6],names={na:'Saugmotor',diesel:'Turbodiesel',v8:'V8 Supercharger',jet:'Jet-Gasturbine',v12:'V12 Biturbo'},prices={diesel:20,v8:500,jet:1000,v12:3000},lands=['Wald','Wüste','Schnee','Stadt','Land','Matschstraße'],paints={Rot:'#bd2828',Gelb:'#e4bd25',Grün:'#27864b',Schwarz:'#202328',Blau:'#2865b4',Lila:'#873fc4',Gold:'#e8a900',Türkis:'#16b8b0',Chrom:'#c8d1d8'};
+function save(){localStorage.setItem('dt15save',JSON.stringify({coins,meters,unlocked,size,bottles,special,permanent,vehicle,paint,ownedPaint,busStopAt,busStops,maxSize,ownedVehicles,blitzerShield}))}
+function msg(s){$('message').textContent=s}function cap(){return caps[size-1]}
+function audio(){if(ac){ac.resume();return}try{ac=new AudioContext();osc=ac.createOscillator();gain=ac.createGain();osc.type='sawtooth';osc.connect(gain);gain.connect(ac.destination);gain.gain.value=.01;osc.start();wh=ac.createOscillator();wgain=ac.createGain();wh.type='sine';wh.connect(wgain);wgain.connect(ac.destination);wgain.gain.value=.0001;wh.start()}catch(e){}}
+function sound(){if(!ac)return;osc.frequency.setTargetAtTime(engine==='jet'?500+rpm*1.15:engine==='v12'?55+rpm/18:engine==='v8'?65+rpm/22:engine==='na'?35+rpm/65:30+rpm/75,ac.currentTime,.08);gain.gain.setTargetAtTime(gas?.05:.008,ac.currentTime,.08);let idlePitch=1900+100*Math.sin(ac.currentTime*.7);let targetPitch=runaway?Math.min(22000,1900+rpm*.85):engine==='jet'?Math.min(22000,2400+rpm*.9+(gas?3500:0)):engine==='v12'?1100+Math.max(0,rpm-850)*.42+(gas?900:0)+pressure*260:idlePitch+(gas?Math.max(0,rpm-850)*.75+pressure*260:0);whistlePitch+=(targetPitch-whistlePitch)*(runaway?.22:gas?.15:.035);let active=whistle&&((engine==='diesel'&&(!broken||runaway))||engine==='jet'||engine==='v12');wh.frequency.setTargetAtTime(Math.min(22000,whistlePitch),ac.currentTime,.025);wgain.gain.setTargetAtTime(active?(runaway?.32:engine==='jet'?(gas?.22:.035):engine==='v12'?(gas?.12:.018):gas?.22:.004):.0001,ac.currentTime,.035);$('whistle').textContent=active?(engine==='jet'?'Jet-Turbinenpfeifen: ':engine==='v12'?'V12-Biturbo-Pfeifen: ':'Turboladerpfeifen: ')+Math.round(whistlePitch).toLocaleString('de-DE')+' Hz'+(gas?' · unter Last':' · Leerlauf'):'Turboladerpfeifen: aus'}
+function update(){$('km').textContent=meters.toFixed(0)+' m';$('coins').textContent=coins;$('bottles').textContent=bottles;$('points').textContent=points;$('boost').textContent=pressure.toFixed(2);$('rpm').textContent=Math.round(rpm).toLocaleString('de-DE');$('speed').textContent=Math.round(speed);$('limit').textContent='Grenze '+cap()+' bar';$('boostbar').style.width=Math.min(100,pressure/cap()*100)+'%';$('boostbar').style.background=pressure>cap()?'#ed3328':'#e5a52c';$('tempbox').style.display=(engine==='na'||engine==='jet')?'none':'block';$('timerbox').style.display=engine==='diesel'?'block':'none';$('templabel').textContent=engine==='v12'?'Abgastemperatur':engine==='v8'?'Kompressortemperatur':'Turboladertemperatur';$('temp').textContent=Math.round(temp)+' °C';$('tempbar').style.width=Math.min(100,temp/(engine==='v12'?1100:1000)*100)+'%';$('tempbar').style.background=temp>=(engine==='v12'?900:750)?'#ed3328':'#e5a52c';$('timer').textContent=Math.max(0,30-over).toFixed(1)+' s';$('timerbar').style.width=Math.max(0,(30-over)/30*100)+'%';$('timerbar').style.background=over>=25?'#ed3328':'#e5a52c';$('fuel').textContent=Math.round(fuel)+' %';$('fuelbar').style.width=fuel+'%';$('garage').textContent=(broken?'Lader defekt – Austausch nötig':'Lader betriebsbereit')+' · Größe '+size;$('unlocks').textContent='Freigeschaltet: '+unlocked.map(x=>names[x]).join(', ');$('color').textContent=paint;$('paintinfo').textContent='Aktuelle Farbe: '+paint+' · Im Farbset: '+ownedPaint.length;for(let k of ['diesel','v8','jet','v12']){$(k).disabled=unlocked.includes(k);if(k==='v12')$(k).textContent='V12 Biturbo · '+(unlocked.includes(k)?'✓ FREIGESCHALTET':'3.000 Münzen')}}
+function selectEngine(k){if(!unlocked.includes(k)){msg('Motor noch gesperrt!');$('engine').value=engine;return}engine=k;pressure=k==='diesel'?.3:0;spool=0;temp=200;over=0;runaway=false;rpm=850;update();msg(names[k]+' ausgewählt!')}
+$('engine').onchange=()=>selectEngine($('engine').value);
+for(let k of ['diesel','v8','jet','v12'])$(k).onclick=()=>{if(coins<prices[k]){msg('Nicht genügend Münzen!');return}coins-=prices[k];unlocked.push(k);save();selectEngine(k);$('engine').value=k;update()};
+function hold(id,fn){let b=$(id);b.onpointerdown=e=>{e.preventDefault();audio();fn(1);b.setPointerCapture(e.pointerId)};b.onpointerup=b.onpointercancel=()=>fn(0)}
+hold('gas',v=>gas=v);hold('brake',v=>brake=v);hold('nitro',v=>{if(v&&bottles&&!nitro){bottles--;nitro=1;msg('Nitro aktiviert!')}if(!v)nitro=0});
+function hornSound(){try{audio();if(!ac)return;let now=ac.currentTime;for(let f of [390,520]){let o=ac.createOscillator(),g=ac.createGain();o.type='sawtooth';o.frequency.setValueAtTime(f,now);g.gain.setValueAtTime(.0001,now);g.gain.exponentialRampToValueAtTime(.12,now+.025);g.gain.setValueAtTime(.12,now+.22);g.gain.exponentialRampToValueAtTime(.0001,now+.42);o.connect(g);g.connect(ac.destination);o.start(now);o.stop(now+.44)}}catch(e){}}
+ $('horn').onclick=()=>{hornSound();if(Math.random()<.15){let oldScene=scene;do{scene=Math.floor(Math.random()*lands.length)}while(scene===oldScene);sceneTime=0;$('land').textContent=lands[scene];msg('📯 Hupen! Ein neues Biom wurde herbeigerufen: '+lands[scene]+'!')}else msg('📯 MÖÖP!')};$('sound').onclick=()=>{whistle=!whistle;audio();sound()};
+function refreshVehicles(){for(let opt of $('vehicle').options){let v=opt.value;opt.disabled=false;if(v==='Sportwagen')opt.textContent='Sportwagen'+(ownedVehicles.includes(v)?' ✓':' · 3.000 Münzen · bis 380 km/h');else if(v==='Lkw')opt.textContent='Lastwagen'+(ownedVehicles.includes(v)?' ✓':' · 500 Münzen');else if(v==='Bus')opt.textContent='Bus'+(ownedVehicles.includes(v)?' ✓':' · 3.000 Münzen');else if(v==='Geländewagen')opt.textContent='Geländewagen'+(ownedVehicles.includes(v)?' ✓':' · sehr selten aus Kisten');}$('vehicle').value=ownedVehicles.includes(vehicle)?vehicle:'Auto';}
+ refreshVehicles();$('busstopbox').style.display=vehicle==='Bus'?'block':'none';
+ $('vehicle').onchange=()=>{let chosen=$('vehicle').value;if(!ownedVehicles.includes(chosen)){let cost=chosen==='Lkw'?500:chosen==='Bus'?3000:chosen==='Sportwagen'?3000:Infinity;if(!Number.isFinite(cost)){msg('Der Geländewagen ist nur sehr selten in Sonderkisten erhältlich!');$('vehicle').value=vehicle;return;}if(coins<cost){msg('Nicht genügend Münzen! Für '+(chosen==='Bus'||chosen==='Sportwagen'?'den '+(chosen==='Bus'?'Bus':'Sportwagen')+' brauchst du 3.000':'den Lastwagen 500')+' Münzen.');$('vehicle').value=vehicle;return;}coins-=cost;ownedVehicles.push(chosen);msg(chosen==='Bus'?'🚌 Bus für 3.000 Münzen freigeschaltet!':chosen==='Sportwagen'?'🏎️ Sportwagen für 3.000 Münzen freigeschaltet!':'🚚 Lastwagen für 500 Münzen freigeschaltet!');}vehicle=chosen;$('busstopbox').style.display=vehicle==='Bus'?'block':'none';if(vehicle==='Bus')updateBusStop();save();update();refreshVehicles()};
+ function updateBusStop(){if(vehicle!=='Bus')return;let left=Math.max(0,busStopAt-meters);$('busstopdistance').textContent=busStopReady?'HALTESTELLE ERREICHT':Math.ceil(left).toLocaleString('de-DE')+' m';$('busstopmessage').textContent=busStopReady?'Bus steht – jetzt Fahrgäste einsammeln!':busStopMissed?'Haltestelle verpasst!':'Noch bis zur Haltestelle';$('buscollect').disabled=!busStopReady||speed>2;}
+ $('buscollect').onclick=()=>{if(vehicle!=='Bus'||!busStopReady||speed>2)return;busStops++;coins+=500;let extra='';if(busStops%4===0){coins+=1000;extra=' Zusätzlich 1.000 Münzen Bonus für vier Haltestellen!'}msg('🚌 Haltestelle eingesammelt: +500 Münzen!'+extra);busStopAt+=3000;busStopReady=false;busStopMissed=false;save();update();updateBusStop()};function refreshSizes(){for(let opt of $('size').options)opt.disabled=Number(opt.value)>maxSize;$('size').value=size;}
+ refreshSizes();$('size').onchange=()=>{let chosen=+$('size').value;if(chosen>maxSize){$('size').value=size;msg('Diese Turboladergröße ist noch nicht freigeschaltet!');return;}size=chosen;save();update()};
+function renderPaintSet(){
+let box=$('paintset');box.innerHTML='';
+let standard=['Rot','Gelb','Grün','Schwarz','Blau'];
+for(let p of standard){
+let b=document.createElement('button');b.textContent=(ownedPaint.includes(p)?'✓ ':'')+p;b.style.background=paints[p];b.onclick=()=>{
+if(!ownedPaint.includes(p)){if(coins<20){msg('Du brauchst 20 Münzen!');return}coins-=20;ownedPaint.push(p)}
+paint=p;save();update();renderPaintSet();msg('Fahrzeug umlackiert: '+p);
+};box.appendChild(b);
+}
+for(let p of ownedPaint.filter(x=>!standard.includes(x))){
+let wrap=document.createElement('div');wrap.style.display='flex';wrap.style.gap='4px';
+let b=document.createElement('button');b.textContent=(paint===p?'✓ ':'')+p;b.style.background=paints[p]||'#555';b.onclick=()=>{paint=p;save();update();renderPaintSet();msg('Fahrzeug umlackiert: '+p)};
+let remove=document.createElement('button');remove.textContent='Entfernen';remove.style.width='auto';remove.onclick=()=>{
+ownedPaint=ownedPaint.filter(x=>x!==p);if(paint===p)paint='Rot';save();update();renderPaintSet();msg('Farbe '+p+' aus dem Farbset entfernt.');
+};wrap.appendChild(b);wrap.appendChild(remove);box.appendChild(wrap);
+}
+}
+renderPaintSet();
+$('repair').onclick=()=>{broken=false;fire=false;gameover=false;runaway=false;over=0;pressure=(engine==='diesel'||engine==='v12')?.3:0;temp=200;speed=0;$('gauges').style.display='block';msg('Lader repariert!');update()};
+$('replace').onclick=()=>{if(coins<100||!broken){msg('Defekter Lader und 100 Münzen erforderlich.');return}coins-=100;broken=false;fire=false;pressure=(engine==='diesel'||engine==='v12')?.3:0;save();update()};
+$('upgrade').onclick=()=>{if(coins<300||maxSize===5){msg('Upgrade nicht möglich.');return}coins-=300;maxSize++;size=maxSize;broken=false;fire=false;refreshSizes();save();update();msg('Turboladergröße '+size+' freigeschaltet und eingebaut!')};
+$('refuel').onclick=()=>{fuel=100;msg('Tank voll!')};
+$('restart').onclick=()=>{speed=0;rpm=850;pressure=(engine==='diesel'||engine==='v12')?.3:0;spool=0;temp=200;fuel=100;over=0;runaway=broken=gameover=fire=false;gas=brake=nitro=0;$('gauges').style.display='block';msg('Neustart!')};
+ $('reset-save').onclick=()=>{$('resetconfirm').style.display='flex'};
+ $('reset-no').onclick=()=>{$('resetconfirm').style.display='none'};
+ $('reset-yes').onclick=()=>{localStorage.removeItem('dt15save');location.reload()};
+
+function explosionSound(){
+ if(!whistle)return;
+ try{
+  audio();
+  if(!ac)return;
+  let now=ac.currentTime;
+  let osc2=ac.createOscillator(),g2=ac.createGain();
+  osc2.type='sawtooth';osc2.frequency.setValueAtTime(105,now);osc2.frequency.exponentialRampToValueAtTime(28,now+.42);
+  g2.gain.setValueAtTime(.9,now);g2.gain.exponentialRampToValueAtTime(.001,now+.5);
+  osc2.connect(g2);g2.connect(ac.destination);osc2.start(now);osc2.stop(now+.52);
+  let buffer=ac.createBuffer(1,Math.floor(ac.sampleRate*.38),ac.sampleRate),data=buffer.getChannelData(0);
+  for(let i=0;i<data.length;i++)data[i]=(Math.random()*2-1)*(1-i/data.length);
+  let noise=ac.createBufferSource(),ng=ac.createGain();noise.buffer=buffer;
+  ng.gain.setValueAtTime(.75,now);ng.gain.exponentialRampToValueAtTime(.001,now+.38);
+  noise.connect(ng);ng.connect(ac.destination);noise.start(now);noise.stop(now+.4);
+ }catch(e){}
+}
+function burst(){
+ if(broken)return;
+ broken=true;fire=true;pressure=0;speed*=.25;temp=800;explosionSound();
+ msg('💥 KNALL! TURBOLADER GEPLATZT! FAHRZEUG BRENNT! Über AUSTAUSCH reparieren.');
+}
+function reward(){let n=Math.floor(meters/500000);if(n>special){special=n;$('reward').textContent='🏆 '+(n*500)+' km! Sonderüberraschung freigeschaltet!';$('claim').style.display='block';save()}}
+let pending=false;
+$('claim').onclick=()=>{if(!pending&&special===0)return;let n=Math.random();if(n<.3){coins+=200;msg('200 Münzen gewonnen!')}else if(n<.6){bottles+=5;msg('5 Nitroflaschen gewonnen!')}else if(n<.85){permanent=true;msg('Lader-Unverwundbarkeit freigeschaltet!')}else{coins+=500;msg('500 Münzen gewonnen!')}pending=false;$('claim').style.display='none';$('reward').textContent='';save();update()};
+function wheel(x,y,rad){c.save();c.translate(x,y);c.fillStyle='#111';c.beginPath();c.arc(0,0,rad,0,Math.PI*2);c.fill();c.strokeStyle='#555e63';c.lineWidth=Math.max(2,rad*.12);c.beginPath();c.arc(0,0,rad*.82,0,Math.PI*2);c.stroke();c.rotate(wheelRotation);c.strokeStyle='#aeb9c0';c.lineWidth=Math.max(2,rad*.12);for(let i=0;i<8;i++){c.beginPath();c.moveTo(0,0);c.lineTo(rad*.48,0);c.stroke();c.rotate(Math.PI/4)}c.fillStyle='#d5dce0';c.beginPath();c.arc(0,0,rad*.2,0,Math.PI*2);c.fill();c.restore()}
+function drawVehicle(){c.save();c.translate(250,245+pitch*30);c.rotate(gas&&vehicle==='Auto'?-0.025:brake&&vehicle==='Auto'?0.012:0);c.fillStyle='rgba(0,0,0,.25)';c.beginPath();c.ellipse(0,8,135,12,0,0,7);c.fill();c.fillStyle=paints[paint]||paints.Rot;c.strokeStyle='#171d21';c.lineWidth=3;
+if(vehicle==='Sportwagen'){c.beginPath();c.moveTo(-140,-22);c.lineTo(-118,-48);c.lineTo(-72,-58);c.lineTo(-35,-82);c.lineTo(52,-82);c.lineTo(92,-54);c.lineTo(137,-42);c.lineTo(145,-20);c.lineTo(130,-8);c.lineTo(-135,-8);c.closePath();c.fill();c.stroke();c.fillStyle='#183343';c.beginPath();c.moveTo(-44,-60);c.lineTo(-20,-77);c.lineTo(43,-77);c.lineTo(68,-55);c.closePath();c.fill();wheel(-88,-7,23);wheel(92,-7,23)}else if(vehicle==='Auto'){c.beginPath();c.moveTo(-125,-24);c.lineTo(-115,-52);c.lineTo(-78,-58);c.lineTo(-48,-91);c.quadraticCurveTo(-5,-106,38,-86);c.lineTo(75,-54);c.lineTo(119,-46);c.lineTo(132,-20);c.lineTo(125,-8);c.lineTo(-125,-8);c.closePath();c.fill();c.stroke();c.fillStyle='#172d3a';c.beginPath();c.moveTo(-63,-61);c.lineTo(-40,-85);c.quadraticCurveTo(0,-97,30,-83);c.lineTo(56,-57);c.closePath();c.fill();wheel(-78,-9,22);wheel(83,-9,22)}
+else if(vehicle==='Lkw'){c.beginPath();c.roundRect(-135,-70,180,62,5);c.fill();c.stroke();c.beginPath();c.moveTo(45,-70);c.lineTo(100,-70);c.lineTo(135,-39);c.lineTo(135,-8);c.lineTo(45,-8);c.closePath();c.fill();c.stroke();c.fillStyle='#183343';c.fillRect(83,-61,32,24);wheel(-85,-7,20);wheel(40,-7,20);wheel(105,-7,20)}
+else if(vehicle==='Geländewagen'){c.beginPath();c.moveTo(-138,-24);c.lineTo(-128,-65);c.lineTo(-88,-74);c.lineTo(-55,-101);c.lineTo(45,-101);c.lineTo(76,-70);c.lineTo(125,-58);c.lineTo(140,-20);c.lineTo(132,-8);c.lineTo(-135,-8);c.closePath();c.fill();c.stroke();c.fillStyle='#193545';c.fillRect(-45,-92,82,30);c.fillStyle='#d8e0e4';c.fillRect(108,-48,18,10);wheel(-88,-7,25);wheel(91,-7,25);c.fillStyle='#222';c.fillRect(-125,-85,22,12);c.fillRect(112,-82,18,12)}else{c.beginPath();c.roundRect(-138,-100,276,92,15);c.fill();c.stroke();c.fillStyle='#193545';for(let x=-116;x<110;x+=42)c.fillRect(x,-88,34,39);wheel(-90,-7,18);wheel(90,-7,18)}
+if(fire){c.fillStyle='#ff6811';c.beginPath();c.arc(0,-110,24,0,7);c.fill()}c.restore()}
+function road(){c.fillStyle=['#a6c7d8','#dfc28e','#dce7ee','#9db9d0','#8bb9d9'][scene];c.fillRect(0,0,850,340);c.fillStyle=scene===2?'#fff':scene===1?'#c7a36a':'#568346';c.fillRect(0,220,850,120);for(let x=-80;x<950;x+=130){let xx=((x-dist*.25)%950+950)%950;c.fillStyle=scene===3?'#657c8b':'#315c37';if(scene===3)c.fillRect(xx,95,55,125);else{c.beginPath();c.arc(xx,185,30,0,7);c.fill();c.fillRect(xx-4,185,8,35)}}if(scene===5){
+c.fillStyle='#59402d';c.beginPath();c.moveTo(0,270);
+for(let x=0;x<=850;x+=10){let hill=Math.sin((x+dist*.65)*.012)*18+Math.sin((x+dist*.3)*.025)*7;c.lineTo(x,270-hill)}
+c.lineTo(850,340);c.lineTo(0,340);c.closePath();c.fill();
+c.strokeStyle='#876044';c.lineWidth=5;c.beginPath();for(let x=0;x<=850;x+=10){let hill=Math.sin((x+dist*.65)*.012)*18+Math.sin((x+dist*.3)*.025)*7;if(x===0)c.moveTo(x,270-hill);else c.lineTo(x,270-hill)}c.stroke();
+c.fillStyle='#39291f';for(let x=40;x<850;x+=145){let xx=((x-dist*.7)%950+950)%950;c.beginPath();c.ellipse(xx,286,24,7,0,0,Math.PI*2);c.fill()}
+}else{c.fillStyle='#3b4245';c.fillRect(0,260,850,80);c.strokeStyle='#fff';c.lineWidth=3;c.setLineDash([45,35]);c.lineDashOffset=-dist;c.beginPath();c.moveTo(0,300);c.lineTo(850,300);c.stroke();c.setLineDash([]);}for(let o of objects){if(o.type==='special'){c.fillStyle='#8b45d6';c.fillRect(o.x-15,226,30,30);c.strokeStyle='#f6d65b';c.lineWidth=3;c.strokeRect(o.x-15,226,30,30);c.beginPath();c.moveTo(o.x-15,241);c.lineTo(o.x+15,241);c.moveTo(o.x,226);c.lineTo(o.x,256);c.stroke();c.fillStyle='#fff2a6';c.font='bold 15px sans-serif';c.fillText('★',o.x-6,246)}else{c.fillStyle=o.type==='coin'?'#ffd13c':'#d9a12d';c.beginPath();c.arc(o.x,248,12,0,Math.PI*2);c.fill()}}
+  if(vehicle==='Bus'&&!busStopMissed){
+    let bx=690-(busStopAt-meters)*.55;
+    if(bx>-45&&bx<895){c.save();c.translate(bx,215);c.strokeStyle='#252b30';c.lineWidth=4;c.beginPath();c.moveTo(0,5);c.lineTo(0,48);c.stroke();c.fillStyle='#f4f5f5';c.fillRect(-18,-25,36,30);c.strokeStyle='#26343b';c.lineWidth=2;c.strokeRect(-18,-25,36,30);c.fillStyle='#1769a6';c.fillRect(-14,-21,28,22);c.fillStyle='white';c.font='bold 16px sans-serif';c.fillText('H',-6,-4);c.restore();}
+  }
+  if(scene===3&&cityCameraAt!==null&&!cameraPassed){
+    let cx=690-(cityCameraAt-meters)*.55;
+    if(cx>-55&&cx<900){c.save();c.translate(cx,214);c.fillStyle='#555';c.fillRect(-3,-5,6,55);c.fillStyle='#222';c.fillRect(-19,-30,38,28);c.fillStyle='#e33';c.fillRect(-14,-25,28,17);c.fillStyle='#fff';c.font='bold 9px sans-serif';c.fillText('RADAR',-13,-13);c.restore();}
+  }
+  drawVehicle();
+ let weather=$('weather').value;weatherTime+=0.016;
+ if(weather==='Regen'||(weather==='Wechselnd'&&Math.floor(weatherTime/12)%4===1)){
+   c.strokeStyle='rgba(190,215,235,.62)';c.lineWidth=2;
+   for(let i=0;i<65;i++){let x=(i*137+weatherTime*260)%870,y=(i*71+weatherTime*430)%340;c.beginPath();c.moveTo(x,y);c.lineTo(x-9,y+18);c.stroke();}
+ }else if(weather==='Schnee'||(weather==='Wechselnd'&&Math.floor(weatherTime/12)%4===2)){
+   c.fillStyle='rgba(255,255,255,.85)';for(let i=0;i<55;i++){let x=(i*149+Math.sin(weatherTime+i)*18)%850,y=(i*67+weatherTime*38)%340;c.beginPath();c.arc(x,y,2+(i%3),0,Math.PI*2);c.fill();}
+ }else if(weather==='Nebel'||(weather==='Wechselnd'&&Math.floor(weatherTime/12)%4===3)){
+   c.fillStyle='rgba(210,220,225,.22)';for(let i=0;i<4;i++){let x=((i*240-weatherTime*12)%1100+1100)%1100-100;c.fillRect(x,80+i*48,260,34);}
+ }else if(weather==='Sonnig'||weather==='Wechselnd'){
+   c.fillStyle='rgba(255,225,120,.10)';c.beginPath();c.arc(735,58,42+Math.sin(weatherTime*2)*3,0,Math.PI*2);c.fill();
+ }
+ 
+ if(isNight){c.fillStyle='rgba(5,12,35,.58)';c.fillRect(0,0,850,340);c.fillStyle='#f4f0c2';c.beginPath();c.arc(735,55,22,0,Math.PI*2);c.fill();c.fillStyle='rgba(255,245,180,.18)';c.beginPath();c.arc(250,240,190,0,Math.PI*2);c.fill();c.fillStyle='#fff';for(let i=0;i<28;i++){let sx=(i*97+31)%850,sy=(i*53+17)%180;c.fillRect(sx,sy,2,2)}}if(runaway){c.fillStyle='#b22';c.fillRect(0,0,850,30);c.fillStyle='white';c.fillText('TURBODIESEL RUNAWAY – '+Math.round(rpm).toLocaleString('de-DE')+' U/MIN!',15,20)}if(gameover){c.fillStyle='rgba(120,0,0,.8)';c.fillRect(0,0,850,340);c.fillStyle='white';c.font='bold 50px sans-serif';c.fillText('GAME OVER',300,180)}}
+function specialBoxReward(){
+ let roll=Math.random();
+ if(roll<.05&&!blitzerShield){blitzerShield=true;msg('🎁 EXTREM SELTEN! Dauerhafter Blitzerschutz freigeschaltet!');}
+ else if(roll<.11&&!ownedVehicles.includes('Geländewagen')){ownedVehicles.push('Geländewagen');msg('🎁 EXTREM SELTEN! Neuer Geländewagen freigeschaltet!');refreshVehicles();}
+ else if(roll<.35){let amount=[100,250,500,1000][Math.floor(Math.random()*4)];coins+=amount;msg('🎁 Sonderkiste: '+amount+' Münzen gewonnen!')}
+ else if(roll<.55){let amount=[3,5,10][Math.floor(Math.random()*3)];bottles+=amount;msg('🎁 Sonderkiste: '+amount+' Nitroflaschen!')}
+ else if(roll<.77){let choices=['Lila','Gold','Türkis','Chrom'].filter(p=>!ownedPaint.includes(p));if(choices.length){let p=choices[Math.floor(Math.random()*choices.length)];ownedPaint.push(p);msg('🎁 Sonderkiste: Sonderlackierung '+p+' kostenlos zum Farbset hinzugefügt!')}else{coins+=300;msg('🎁 Alle Sonderfarben gesammelt: 300 Münzen!')}}
+ else if(roll<.96){let choices=['diesel','v8','jet'].filter(k=>!unlocked.includes(k));if(choices.length){let k=choices[Math.floor(Math.random()*choices.length)];unlocked.push(k);msg('🎁 Sonderkiste: '+names[k]+' freigeschaltet!')}else{coins+=500;msg('🎁 Alle Motoren freigeschaltet: 500 Münzen!')}}
+ else{permanent=true;msg('🎁 Sonderkiste: Lader-Unverwundbarkeit freigeschaltet!')}
+ update();renderPaintSet();save();
+}
+function frame(t){let dt=Math.min(.04,(t-last)/1000||.016);last=t;if(!gameover){sceneTime+=dt;dayClock+=dt;if(dayClock>=130){dayClock=0;isNight=!isNight;$('timeofday').textContent=isNight?'Nacht':'Tag'}if(sceneTime>=45){sceneTime=0;scene=Math.floor(Math.random()*lands.length);$('land').textContent=lands[scene];cityCameraAt=scene===3&&Math.random()<.025?meters+350+Math.random()*900:null;cameraPassed=false;}spool+=((gas?1:0)-spool)*dt*((engine==='diesel'||engine==='v12')?(gas?.16:.45)/size:.7);
+if((engine==='diesel'||engine==='v8'||engine==='v12')&&!broken){
+ let targetPressure=(engine==='diesel'||engine==='v12'?.3:.45)+spool*((engine==='diesel'||engine==='v12')?2.7:3.2)+(nitro?.5:0);
+ let rate=gas?(pressure<1.2?.34:.52):1.5;
+ pressure+=(targetPressure-pressure)*dt*rate;
+ }else if(engine==='na'||engine==='jet')pressure=0;
+ if(broken)pressure=0;
+let hot=pressure>cap()&&(engine==='diesel'||engine==='v8'||engine==='v12')&&!permanent;
+ if(engine==='diesel'&&hot&&!runaway)over=Math.min(30,over+dt);
+ else if(engine==='diesel'&&!runaway)over=Math.max(0,over-dt*.4);
+ if(engine==='diesel'&&over>=30&&!runaway){over=30;runaway=true;msg('DIESEL RUNAWAY! ÜBERLASTUNGSZEIT ABGELAUFEN!')}
+if(engine==='na'||engine==='jet')temp=Math.max(200,temp-dt*3);else if(!broken)temp=Math.min(engine==='v12'?1100:Infinity,Math.max(200,temp+dt*(gas?(2+spool*2.8):-.9)*(hot?3:1)));
+ if(engine==='diesel'&&!broken&&temp>=800&&!hot)burst();
+if(runaway&&engine==='diesel'){rpm+=dt*1300;pressure=Math.min(25,pressure+dt*.18);speed=Math.max(0,speed-dt*.8);if(rpm>=20000){rpm=20000;burst();gameover=true;msg('💥 TURBODIESEL RUNAWAY! 20.000 U/MIN – GAME OVER! FAHRZEUG BRENNT!')}}
+else if(!broken){let maxRpm=engine==='v12'?12000:engine==='jet'?20000:engine==='na'?12000:6000;if(gas){rpm=Math.min(maxRpm,rpm+(maxRpm-rpm)*dt*.18+spool*(engine==='jet'?900:100)*dt)}else rpm+=(850-rpm)*dt*.18}
+let force=gas*((engine==='diesel'||engine==='v12')?8+spool*48:engine==='jet'?150+spool*180:engine==='v8'?18:10)+(nitro?20:0);if(broken)force*=.03;let vehicleMax=vehicle==='Bus'?120:vehicle==='Lkw'?100:vehicle==='Sportwagen'?380:vehicle==='Auto'?250:250;speed=Math.max(0,Math.min(vehicleMax,speed+(force/(1+speed*.06)-(brake?28:gas?0:1))*dt));pitch+=((gas?-.07:brake?.08:0)-pitch)*dt*4;let moved=speed*dt/3.6;meters+=moved;dist+=speed*dt*3;
+ if(scene===3&&cityCameraAt!==null&&!cameraPassed&&meters>=cityCameraAt){
+   cameraPassed=true;
+   if(!blitzerShield){coins=Math.max(0,coins-10000);msg('📸 GEBLITZT! 10.000 Münzen verloren!');}
+   else msg('🛡️ Blitzer ausgelöst – dein dauerhafter Blitzerschutz hat dich geschützt!');
+   save();
+ }if(vehicle==='Bus'){
+ if(!busStopReady&&!busStopMissed&&meters>=busStopAt-25&&meters<=busStopAt+25){busStopReady=true;msg('🚌 Bushaltestelle erreicht! Anhalten und EINMAL EINSAMMELN drücken.')}
+ if(!busStopReady&&!busStopMissed&&meters>busStopAt+25){busStopMissed=true;busStopAt+=3000;busStopMissed=false;msg('🚌 Bushaltestelle verpasst! Du bist vorbeigefahren.')}
+ if(busStopReady&&meters>busStopAt+25){busStopReady=false;busStopMissed=true;busStopAt+=3000;busStopMissed=false;msg('🚌 Bushaltestelle verpasst! Du bist vorbeigefahren.')}
+ if(busStopReady){$('busstopmessage').textContent=speed<=2?'Bus steht – jetzt Fahrgäste einsammeln!':'Bitte vollständig anhalten!';$('buscollect').disabled=speed>2;}
+ $('busstopdistance').textContent=busStopReady?'HALTESTELLE ERREICHT':Math.ceil(Math.max(0,busStopAt-meters)).toLocaleString('de-DE')+' m';
+}wheelRotation+=moved/0.35;if(nitro)fuel=Math.max(0,fuel-dt*.4);else if(moved>0)fuel=Math.max(0,fuel-moved*.000035);if(fuel===0){gas=0;nitro=0;msg('Tank leer! Bitte tanken!')}
+if(Math.random()<dt*.3&&objects.length<8)objects.push({x:900,type:Math.random()<.8?'coin':'can'});
+if(meters>=nextSpecialMilestone){specialBoxesQueued+=Math.floor(nextSpecialMilestone/50000);nextSpecialMilestone+=50000;}if(specialBoxesQueued>0&&objects.length<8){objects.push({x:960,type:'special'});specialBoxesQueued--;lastSpecialBox=meters;}for(let i=objects.length-1;i>=0;i--){let o=objects[i];o.x-=speed*dt+30*dt;if(o.x<270&&o.x>220){if(o.type==='coin'){coins++;if(coins%10===0)bottles++;msg('+1 Münze!')}
+else if(o.type==='can'){fuel=100;msg('Tankkanister gefunden!')}
+else{specialBoxReward()}objects.splice(i,1);save()}else if(o.x<0)objects.splice(i,1)}
+if(Math.floor(meters/500000)>special){special=Math.floor(meters/500000);pending=true;$('reward').textContent='🏆 '+(special*500)+' km! Sonderüberraschung freigeschaltet!';$('claim').style.display='block';save()}
+update();sound()}road();requestAnimationFrame(frame)}
+$('land').textContent=lands[scene];refreshVehicles();refreshSizes();update();requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
